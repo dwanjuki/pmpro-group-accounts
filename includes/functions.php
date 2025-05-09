@@ -69,3 +69,40 @@ function pmprogroupacct_member_edit_url_for_user( $user ) {
 	// Return the parent user edit URL.
 	return $member_edit_url;
 }
+
+/**
+ * Get all levels that have the passed level as a child level.
+ *
+ * @since TBD
+ *
+ * @param int $level_id The ID of the membership level to check.
+ * @return array $parent_level_ids An array of Level IDs of levels that have the passed level as a child level.
+ */
+function pmprogroupacct_level_get_parent_levels( $level_id ) {
+	global $wpdb;
+
+	$parent_level_ids = array();
+
+	// Make sure that $level_id is an integer.
+	$level_id = intval( $level_id );
+
+	// Get metadata for all levels with group account settings.
+	$levels_meta = $wpdb->get_results(
+		$wpdb->prepare(
+			"SELECT pmpro_membership_level_id, meta_value FROM $wpdb->pmpro_membership_levelmeta WHERE meta_key = %s",
+			'pmprogroupacct_settings'
+		),
+		OBJECT_K
+	);
+
+	// Check if any of the levels have $level_id in their `child_level_ids` array.
+	foreach ( $levels_meta as $parent_level_id => $level_meta ) {
+		// Get group account settings for this level.
+		$setting = maybe_unserialize( $level_meta->meta_value );
+		if ( ! empty( $setting['child_level_ids'] ) && in_array( $level_id, $setting['child_level_ids'], true ) ) {
+			$parent_level_ids[] = $parent_level_id;
+		}
+	}
+
+	return $parent_level_ids;
+}
