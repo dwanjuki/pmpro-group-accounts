@@ -232,6 +232,29 @@ add_action( 'pmpro_save_membership_level', 'pmprogroupacct_pmpro_save_membership
  * @param int $level_id The ID of the level being deleted.
  */
 function pmprogroupacct_pmpro_delete_membership_level( $level_id ) {
+	// Delete parent level group account settings
 	delete_pmpro_membership_level_meta( $level_id, 'pmprogroupacct_settings' );
+
+	// Check if the level being deleted is a child level for any levels
+	$parent_level_ids = pmprogroupacct_level_get_parent_levels( $level_id );
+
+	// Remove the child level ID from the parent level group account settings.
+	if ( ! empty( $parent_level_ids ) ) {
+		foreach ( $parent_level_ids as $parent_level_id ) {
+			// Get the group account settings for the parent level.
+			$settings = pmprogroupacct_get_settings_for_level( $parent_level_id );
+			if ( ! empty( $settings ) && in_array( $level_id, $settings['child_level_ids'] ) ) {
+				// Remove the child level ID from the level's settings.
+				$child_level_ids = $settings['child_level_ids'];
+				$settings['child_level_ids'] = array_values( array_filter( $child_level_ids, fn( $child_level_id ) => $child_level_id !== $level_id ) );
+				if ( empty( $settings['child_level_ids'] ) ) {
+					// If there are no child levels left in this level, delete the group account settings.
+					delete_pmpro_membership_level_meta( $parent_level_id, 'pmprogroupacct_settings' );
+				} else {
+					update_pmpro_membership_level_meta( $parent_level_id, 'pmprogroupacct_settings', $settings );
+				}
+			}
+		}
+	}
 }
 add_action( 'pmpro_delete_membership_level', 'pmprogroupacct_pmpro_delete_membership_level' );
